@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"hash"
 	"io/ioutil"
+	"sort"
+	"strings"
 	"sync"
+	"sync/atomic"
 )
 
 // The below are used as identifiers for the code state machine
@@ -253,6 +256,9 @@ func blankState(
 // This is the 'hot' path for the application and needs to be as fast as possible
 func CountStats(fileJob *FileJob) {
 
+	// Needs to always run to ensure the language is set
+	determineLanguage(fileJob)
+
 	// If the file has a length of 0 it is is empty then we say it has no lines
 	fileJob.Bytes = int64(len(fileJob.Content))
 	if fileJob.Bytes == 0 {
@@ -393,6 +399,73 @@ func CountStats(fileJob *FileJob) {
 	fileJob.Content = nil
 }
 
+type languageGuess struct {
+	Name  string
+	Count int
+}
+
+// Given a filejob which could have multiple language types make a guess to the type
+// based on keywords supplied, which is similar to how https://github.com/vmchale/polyglot does it
+// If however there is only a single language we
+func determineLanguage(fileJob *FileJob) {
+
+	// If being called through an API its possible nothing is set here and as
+	// such should just return as the Language value should have already been set
+	if len(fileJob.PossibleLanguages) == 0 {
+		return
+	}
+
+	// There should only be two possibilities now, either we have a single language
+	// in which case we set it and return
+	// or we have multiple in which case we try to determine it heuristically
+	if len(fileJob.PossibleLanguages) == 1 {
+		fileJob.Language = fileJob.PossibleLanguages[0]
+		return
+	}
+
+	startTime := makeTimestampNano()
+
+	var toCheck string
+	if len(fileJob.Content) > 2000 {
+		toCheck = string(fileJob.Content)[:2000]
+	} else {
+		toCheck = string(fileJob.Content)
+	}
+
+	toSort := []languageGuess{}
+	for _, lan := range fileJob.PossibleLanguages {
+		LanguageFeaturesMutex.Lock()
+		langFeatures := LanguageFeatures[lan]
+		LanguageFeaturesMutex.Unlock()
+
+		count := 0
+		for _, key := range langFeatures.Keywords {
+			if strings.Contains(toCheck, key) {
+				fileJob.Language = lan
+				count++
+			}
+		}
+
+		toSort = append(toSort, languageGuess{Name: lan, Count: count})
+	}
+
+	sort.Slice(toSort, func(i, j int) bool {
+		return toSort[i].Count > toSort[j].Count
+	})
+
+	if Verbose {
+		printWarn(fmt.Sprintf("guessing language %s for file %s", toSort[0].Name, fileJob.Filename))
+	}
+
+	if Trace {
+		printTrace(fmt.Sprintf("nanoseconds to guess language: %s: %d", fileJob.Filename, makeTimestampNano()-startTime))
+	}
+
+	if len(toSort) != 0 {
+		fileJob.Language = toSort[0].Name
+	}
+}
+
 // Reads entire file into memory and then pushes it onto the next queue
 func fileReaderWorker(input chan *FileJob, output chan *FileJob) {
 	var startTime int64
@@ -402,9 +475,7 @@ func fileReaderWorker(input chan *FileJob, output chan *FileJob) {
 		wg.Add(1)
 		go func() {
 			for res := range input {
-				if startTime == 0 {
-					startTime = makeTimestampMilli()
-				}
+				atomic.CompareAndSwapInt64(&startTime, 0, makeTimestampMilli())
 
 				fileStartTime := makeTimestampNano()
 				content, err := ioutil.ReadFile(res.Location)
@@ -449,23 +520,24 @@ func fileProcessorWorker(input chan *FileJob, output chan *FileJob) {
 		wg.Add(1)
 		go func() {
 			for res := range input {
-				if startTime == 0 {
-					startTime = makeTimestampMilli()
-				}
+				atomic.CompareAndSwapInt64(&startTime, 0, makeTimestampMilli())
 
 				fileStartTime := makeTimestampNano()
 				CountStats(res)
 
 				if Duplicates {
+					duplicates.mux.Lock()
 					if duplicates.Check(res.Bytes, res.Hash) {
 						if Verbose {
 							printWarn(fmt.Sprintf("skipping duplicate file: %s", res.Location))
 						}
-						wg.Done()
-						return
+
+						duplicates.mux.Unlock()
+						continue
 					}
 
 					duplicates.Add(res.Bytes, res.Hash)
+					duplicates.mux.Unlock()
 				}
 
 				if Trace {

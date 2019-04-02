@@ -3,7 +3,7 @@ Sloc Cloc and Code (scc)
 
 A tool similar to cloc, sloccount and tokei. For counting physical the lines of code, blank lines, comment lines, and physical lines of source code in many programming languages.
 
-Goal is to be the fastest code counter possible, but also perform COCOMO calculation like sloccount and to estimate code complexity similar to cyclomatic complexity calculators. In short one tool to rule them all and the one I wish I had before I wrote it.
+Goal is to be the fastest code counter possible, but also perform COCOMO calculation like sloccount and to estimate code complexity similar to cyclomatic complexity calculators. In short one tool to rule them all.
 
 Also it has a very short name which is easy to type `scc`.
 
@@ -65,12 +65,11 @@ Why use `scc`?
  - Large language support
  - Can ignore duplicate files
  - Has complexity estimations
+ - You need to tell the difference between Coq and Verilog in the same directory
 
 Why not use `scc`?
 
- - Unable to tell the difference between Coq and Verilog (currently, if enough people raise a bug it will be resolved)
  - You don't like Go for some reason
- - You are working on a Linux system with less than 4 CPU cores and really need the fastest counter possible (use loc or polyglot)
 
 ### Usage
 
@@ -170,13 +169,13 @@ Generally `scc` will be very close to the runtime of `tokei` or faster than any 
 
 However if you want greater performance and you have RAM to spare you can disable the garbage collector like the following on linux `GOGC=-1 scc .` which should speed things up considerably.
 
-Benchmarks are run on fresh 32 CPU Optimised Digital Ocean Virtual Machine 2019/01/10 all done using [hyperfine](https://github.com/sharkdp/hyperfine) with 3 warm-up runs and 10 timed runs.
+Benchmarks are run on fresh 32 CPU Optimised Digital Ocean Virtual Machine 2019/03/04 all done using [hyperfine](https://github.com/sharkdp/hyperfine) with 3 warm-up runs and 10 timed runs.
 
 ```
-scc v2.1.0 (compiled with Go 1.11)
-tokei v8.0.0 (compiled with Rust 1.31)
-loc v0.5.0 (compiled with Rust 1.31)
-polyglot v0.5.18 (downloaded from github)
+scc v2.2.0 (compiled with Go 1.12)
+tokei v9.0.0 (compiled with Rust 1.33)
+loc v0.5.0 (compiled with Rust 1.33)
+polyglot v0.5.19 (downloaded from github)
 ```
 
 
@@ -184,31 +183,31 @@ polyglot v0.5.18 (downloaded from github)
 
 | Program | Runtime |
 |---|---|
-| scc | 23.5 ms ±   2.3 ms |
-| scc (no complexity) | 19.0 ms ±   2.3 ms |
-| tokei | 17.8 ms ±   2.7 ms |
-| loc | 28.4 ms ±  24.9 ms |
-| polyglot | 15.8 ms ±   1.2 ms |
+| scc | 24.0 ms ±   2.7 ms |
+| scc (no complexity) | 18.9 ms ±   2.2 ms |
+| tokei | 26.6 ms ±   3.3 ms |
+| loc | 80.1 ms ±  54.7 ms |
+| polyglot | 15.0 ms ±   1.1 ms |
 
 #### CPython https://github.com/python/cpython
 
 | Program | Runtime |
 |---|---|
-| scc | 67.1 ms ±   5.2 ms |
-| scc (no complexity) | 55.9 ms ±   4.4 ms |
-| tokei | 67.1 ms ±   6.0 ms |
-| loc | 103.6 ms ±  58.6 ms |
-| polyglot | 79.6 ms ±   4.0 ms |
+| scc | 64.3 ms ±   6.3 ms |
+| scc (no complexity) | 53.8 ms ±   6.5 ms |
+| tokei | 74.9 ms ±  11.6 ms |
+| loc | 155.1 ms ±  58.9 ms |
+| polyglot | 83.9 ms ±   9.4 ms |
 
 #### Linux Kernel https://github.com/torvalds/linux
 
 | Program | Runtime |
 |---|---|
-| scc | 654.1 ms ±  26.0 ms |
-| scc (no complexity) | 496.9 ms ±  32.2 ms |
-| tokei | 588.3 ms ±  33.4 ms |
-| loc | 591.0 ms ± 100.8 ms |
-| polyglot | 1.084 s ±  0.051 s |
+| scc | 537.3 ms ±  33.1 ms |
+| scc (no complexity) | 438.9 ms ±  30.3 ms |
+| tokei | 525.9 ms ±  32.7 ms |
+| loc | 1.543 s ±  0.059 s |
+| polyglot | 1.022 s ±  0.056 s |
 
 If you enable duplicate detection expect performance to fall by about 50%
 
@@ -247,239 +246,16 @@ scc is pretty well tested with many unit, integration and benchmarks to ensure t
 Run go build for windows and linux then the following in linux, keep in mind need to update the version
 
 ```
-GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" && zip -r9 scc-1.0.0-x86_64-apple-darwin.zip scc
-GOOS=darwin GOARCH=386 go build -ldflags="-s -w" && zip -r9 scc-1.0.0-i386-apple-darwin.zip scc
-GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" && zip -r9 scc-1.0.0-x86_64-pc-windows.zip scc.exe
-GOOS=windows GOARCH=386 go build -ldflags="-s -w" && zip -r9 scc-1.0.0-i386-pc-windows.zip scc.exe
-GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" && zip -r9 scc-1.0.0-x86_64-unknown-linux.zip scc
-GOOS=linux GOARCH=386 go build -ldflags="-s -w" && zip -r9 scc-1.0.0-i386-unknown-linux.zip scc
+GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" && zip -r9 scc-2.3.0-x86_64-apple-darwin.zip scc
+GOOS=darwin GOARCH=386 go build -ldflags="-s -w" && zip -r9 scc-2.3.0-i386-apple-darwin.zip scc
+GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" && zip -r9 scc-2.3.0-x86_64-pc-windows.zip scc.exe
+GOOS=windows GOARCH=386 go build -ldflags="-s -w" && zip -r9 scc-2.3.0-i386-pc-windows.zip scc.exe
+GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" && zip -r9 scc-2.3.0-x86_64-unknown-linux.zip scc
+GOOS=linux GOARCH=386 go build -ldflags="-s -w" && zip -r9 scc-2.3.0-i386-unknown-linux.zip scc
 ```
 
 ### Languages
 
-List of supported languages. The master version of `scc` supports 222 languages at last count. Note that this is always assumed that you built from master, and it might trail behind what is actually supported. To see what your version of `scc` supports run `scc --languages`
+List of supported languages. The master version of `scc` supports 224 languages at last count. Note that this is always assumed that you built from master, and it might trail behind what is actually supported. To see what your version of `scc` supports run `scc --languages`
 
-```
-ABAP (abap)
-ActionScript (as)
-Ada (ada,adb,ads,pad)
-Agda (agda)
-Alex (x)
-Android Interface Definition Language (aidl)
-Arvo (avdl,avpr,avsc)
-AsciiDoc (adoc)
-ASP (asa,asp)
-ASP.NET (asax,ascx,asmx,aspx,master,sitemap,webinfo)
-Assembly (s,asm)
-ATS (dats,sats,ats,hats)
-Autoconf (in)
-AutoHotKey (ahk)
-AWK (awk)
-BASH (bash,.bash_login,bash_login,.bash_logout,bash_logout,.bash_profile,bash_profile,.bashrc,bashrc)
-Basic (bas)
-Batch (bat,btm,cmd)
-Bazel (bzl,build.bazel,build,workspace)
-Bitbake (bb,bbappend,bbclass)
-Boo (tex)
-Brainfuck (bf)
-BuildStream (bst)
-C (c,ec,pgc)
-C Header (h)
-C Shell (csh,.cshrc)
-C# (cs)
-C++ (cc,cpp,cxx,c++,pcc)
-C++ Header (hh,hpp,hxx,inl,ipp)
-Cabal (cabal)
-Cargo Lock (cargo.lock)
-Cassius (cassius)
-Ceylon (ceylon)
-Clojure (clj)
-ClojureScript (cljs)
-Closure Template (soy)
-CMake (cmake,cmakelists.txt)
-COBOL (cob,cbl,ccp,cobol,cpy)
-CoffeeScript (coffee)
-Cogent (cogent)
-ColdFusion (cfm)
-ColdFusion CFScript (cfc)
-Coq (v)
-Creole (creole)
-Crystal (cr)
-CSS (css)
-CSV (csv)
-Cython (pyx)
-D (d)
-Dart (dart)
-Device Tree (dts,dtsi)
-Dhall (dhall)
-Dockerfile (dockerfile,dockerignore)
-Document Type Definition (dtd)
-Elixir (ex,exs)
-Elm (elm)
-Emacs Dev Env (ede)
-Emacs Lisp (el)
-Erlang (erl,hrl)
-Expect (exp)
-Extensible Stylesheet Language Transformations (xslt)
-F# (fs,fsi,fsx,fsscript)
-F* (fst)
-FIDL (fidl)
-Fish (fish)
-Forth (4th,forth,fr,frt,fth,f83,fb,fpm,e4,rx,ft)
-FORTRAN Legacy (f,for,ftn,f77,pfo)
-FORTRAN Modern (f03,f08,f90,f95)
-Fragment Shader File (fsh)
-Freemarker Template (ftl)
-Game Maker Language (gml)
-Game Maker Project (yyp)
-GDScript (gd)
-Gherkin Specification (feature)
-gitignore (.gitignore)
-GLSL (vert,tesc,tese,geom,frag,comp)
-GN (gn,gni)
-Go (go)
-Go Template (tmpl)
-Gradle (gradle)
-Groovy (groovy,grt,gtpl,gvy)
-Hamlet (hamlet)
-Handlebars (hbs,handlebars)
-Happy (y,ly)
-Haskell (hs)
-Haxe (hx)
-HEX (hex)
-HTML (html,htm)
-IDL (idl,webidl,widl)
-Idris (idr,lidr)
-Intel HEX (ihex)
-Isabelle (thy)
-Jade (jade)
-JAI (jai)
-Java (java)
-JavaScript (js,mjs)
-JavaServer Pages (jsp)
-Jenkins Buildfile (jenkinsfile)
-Jinja (jinja,j2,jinja2)
-JSON (json)
-JSONL (jsonl)
-JSX (jsx)
-Julia (jl)
-Julius (julius)
-Jupyter (ipynb,jpynb)
-Just (justfile)
-Korn Shell (ksh,.kshrc)
-Kotlin (kt,kts)
-LaTeX (tex)
-LD Script (lds)
-Lean (lean,hlean)
-LESS (less)
-LEX (l)
-License (license,licence,copying,copying3,unlicense,unlicence,license-mit,licence-mit)
-Lisp (lisp,lsp)
-LOLCODE (lol,lols)
-Lua (lua)
-Lucius (lucius)
-m4 (m4)
-Macromedia eXtensible Markup Language (mxml)
-Madlang (mad)
-Makefile (makefile,mak,mk,bp)
-Mako (mako,mao)
-Markdown (md,markdown)
-Meson (meson.build,meson_options.txt)
-Modula3 (m3,mg,ig,i3)
-Module-Definition (def)
-MQL Header (mqh)
-MQL4 (mq4)
-MQL5 (mq5)
-MSBuild (csproj,vbproj,fsproj,props,targets)
-MUMPS (mps)
-Mustache (mustache)
-Nim (nim)
-Nix (nix)
-nuspec (nuspec)
-Objective C (m)
-Objective C++ (mm)
-OCaml (ml,mli)
-Opalang (opa)
-Org (org)
-Oz (oz)
-Pascal (pas)
-Patch (patch)
-Perl (pl,pm)
-PHP (php)
-PKGBUILD (pkgbuild)
-Plain Text (text,txt)
-Polly (polly)
-Powershell (ps1,psm1)
-Processing (pde)
-Prolog (p,pro)
-Properties File (properties)
-Protocol Buffers (proto)
-PSL Assertion (psl)
-Puppet (pp)
-PureScript (purs)
-Python (py)
-QCL (qcl)
-QML (qml)
-R (r)
-Rakefile (rake,rakefile)
-Razor (cshtml)
-Report Definition Language (rdl)
-ReStructuredText (rst)
-Robot Framework (robot)
-Ruby (rb)
-Ruby HTML (rhtml)
-Rust (rs)
-SAS (sas)
-Sass (sass,scss)
-Scala (sc,scala)
-Scheme (scm,ss)
-Scons (csig,sconstruct,sconscript)
-sed (sed)
-Shell (sh,.tcshrc)
-SKILL (il)
-Smarty Template (tpl)
-Softbridge Basic (sbl)
-SPDX (spdx)
-Specman e (e)
-Spice Netlist (ckt)
-SQL (sql)
-SRecode Template (srt)
-Standard ML (SML) (sml)
-Stata (do,ado)
-Stylus (styl)
-SVG (svg)
-Swift (swift)
-Swig (i)
-Systemd (automount,device,link,mount,path,scope,service,slice,socket,swap,target,timer)
-SystemVerilog (sv,svh)
-TaskPaper (taskpaper)
-TCL (tcl)
-TeX (tex,sty)
-Thrift (thrift)
-TOML (toml)
-Twig Template (twig)
-TypeScript (ts,tsx)
-TypeScript Typings (d.ts)
-Unreal Script (uc,uci,upkg)
-Ur/Web (ur,urs)
-Ur/Web Project (urp)
-Vala (vala)
-Varnish Configuration (vcl)
-Verilog (vg,vh)
-Verilog Args File (irunargs,xrunargs)
-Vertex Shader File (vsh)
-VHDL (vhd)
-Vim Script (vim)
-Visual Basic (vb)
-Visual Basic for Applications (cls)
-Vue (vue)
-Wolfram (nb,wl)
-XAML (xaml)
-XCode Config (xcconfig)
-XML (xml)
-XML Schema (xsd)
-Xtend (xtend)
-YAML (yaml,yml)
-Zig (zig)
-Zsh (zsh,.zshenv,zshenv,.zlogin,zlogin,.zlogout,zlogout,.zprofile,zprofile,.zshrc,zshrc)
-```
+[Click here to view all languages supported by master](LANGUAGES.md)

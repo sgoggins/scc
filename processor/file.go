@@ -11,6 +11,7 @@ import (
 	"runtime/debug"
 	"strings"
 	"sync"
+	"sync/atomic"
 )
 
 // Used as quick lookup for files with the same name to avoid some processing
@@ -28,15 +29,17 @@ func getExtension(name string) string {
 		return extension.(string)
 	}
 
-	locs := strings.Split(name, ".")
+	ext := filepath.Ext(name)
 
-	switch {
-	case len(locs) == 0 || len(locs) == 1 || strings.LastIndex(name, ".") == 0:
+	if ext == "" || strings.LastIndex(name, ".") == 0 {
 		extension = name
-	case len(locs) == 2:
-		extension = locs[len(locs)-1]
-	default:
-		extension = locs[len(locs)-2] + "." + locs[len(locs)-1]
+	} else {
+		// Handling multiple dots or multiple extensions only needs to delete the last extension
+		// and then call filepath.Ext.
+		// If there are multiple extensions, it is the value of subExt,
+		// otherwise subExt is an empty string.
+		subExt := filepath.Ext(strings.TrimSuffix(name, ext))
+		extension = strings.TrimPrefix(subExt+ext, ".")
 	}
 
 	extensionCache.Store(name, extension)
@@ -56,7 +59,7 @@ func walkDirectoryParallel(root string, output chan *FileJob) {
 	// If input has a supplied white list of extensions then loop through them
 	// and modify the lookup we use to cut down on extra checks
 	if len(WhiteListExtensions) != 0 {
-		wlExtensionLookup := map[string]string{}
+		wlExtensionLookup := map[string][]string{}
 
 		for _, white := range WhiteListExtensions {
 			language, ok := extensionLookup[white]
@@ -69,8 +72,7 @@ func walkDirectoryParallel(root string, output chan *FileJob) {
 		extensionLookup = wlExtensionLookup
 	}
 
-	var mutex = &sync.Mutex{}
-	totalCount := 0
+	var totalCount int64 = 0
 
 	var wg sync.WaitGroup
 
@@ -128,16 +130,16 @@ func walkDirectoryParallel(root string, output chan *FileJob) {
 				go func(toWalk string) {
 					filejobs := walkDirectory(toWalk, PathBlacklist, extensionLookup)
 					for i := 0; i < len(filejobs); i++ {
-						LoadLanguageFeature(filejobs[i].Language)
+						for _, lan := range filejobs[i].PossibleLanguages {
+							LoadLanguageFeature(lan)
+						}
 						output <- &filejobs[i]
 					}
 
-					mutex.Lock()
-					totalCount += len(filejobs)
-					mutex.Unlock()
+					atomic.AddInt64(&totalCount, int64(len(filejobs)))
 
 					// Turn GC back to what it was before if we have parsed enough files
-					if !resetGc && totalCount >= GcFileCount {
+					if !resetGc && atomic.LoadInt64(&totalCount) >= int64(GcFileCount) {
 						debug.SetGCPercent(gcPercent)
 						resetGc = true
 					}
@@ -179,12 +181,13 @@ func walkDirectoryParallel(root string, output chan *FileJob) {
 					}
 
 					if ok {
-						mutex.Lock()
-						totalCount++
-						mutex.Unlock()
+						atomic.AddInt64(&totalCount, 1)
 
-						LoadLanguageFeature(language)
-						output <- &FileJob{Location: fpath, Filename: f.Name(), Extension: extension, Language: language}
+						for _, l := range language {
+							LoadLanguageFeature(l)
+						}
+
+						output <- &FileJob{Location: fpath, Filename: f.Name(), Extension: extension, PossibleLanguages: language}
 					} else if Verbose {
 						printWarn(fmt.Sprintf("skipping file unknown extension: %s", f.Name()))
 					}
@@ -200,7 +203,7 @@ func walkDirectoryParallel(root string, output chan *FileJob) {
 	}
 }
 
-func walkDirectory(toWalk string, blackList []string, extensionLookup map[string]string) []FileJob {
+func walkDirectory(toWalk string, blackList []string, extensionLookup map[string][]string) []FileJob {
 	extension := ""
 	var filejobs []FileJob
 
@@ -257,7 +260,7 @@ func walkDirectory(toWalk string, blackList []string, extensionLookup map[string
 				}
 
 				if ok {
-					filejobs = append(filejobs, FileJob{Location: root, Filename: info.Name(), Extension: extension, Language: language})
+					filejobs = append(filejobs, FileJob{Location: root, Filename: info.Name(), Extension: extension, PossibleLanguages: language})
 				} else if Verbose {
 					printWarn(fmt.Sprintf("skipping file unknown extension: %s", info.Name()))
 				}
